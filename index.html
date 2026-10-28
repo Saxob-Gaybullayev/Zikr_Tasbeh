@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Zikr Hisoblagich</title>
+<meta name="theme-color" content="#234f78">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Zikr">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --status:#234f78;
+    --bar:#2a5d8c;
+    --tile:#2f6798;
+    --tile-on:#3b7bb3;
+    --bg:#000;
+    --row-sel:#2b2b2b;
+    --mark:#ffd400;
+    --p1:#33b1ff;
+    --p2:#2276d2;
+    --text:#fff;
+    --muted:#9aa4ad;
+    --sheet:#1a1d21;
+    --line:#2c3137;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family: Roboto, 'Segoe UI', system-ui, sans-serif; overflow:hidden; overscroll-behavior:none;}
+  button{font:inherit; color:inherit; background:none; border:none; padding:0; cursor:pointer;}
+  svg.i{width:26px; height:26px; display:block;}
+
+  #app{display:flex; flex-direction:column; height:100vh; height:100dvh; max-width:560px; margin:0 auto;
+    padding-bottom:env(safe-area-inset-bottom);}
+
+  /* Top bar */
+  .topbar{display:flex; align-items:center; gap:6px; background:var(--bar);
+    padding: calc(env(safe-area-inset-top) + 8px) 8px 8px; min-height:60px; flex-shrink:0;}
+  .tb{width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:50%;}
+  .tb:active{background:rgba(255,255,255,.12);}
+  .title{flex:1; font-size:21px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:10px;}
+
+  /* Action tiles */
+  .actions{display:flex; gap:6px; background:var(--bar); padding:4px 4px 8px; flex-shrink:0;
+    border-top:1px solid rgba(0,0,0,.15);}
+  .act{flex:1; height:50px; background:var(--tile); border-radius:8px; display:flex; align-items:center; justify-content:center;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);}
+  .act:active{background:var(--tile-on);}
+  .focus .full-only{display:none;}
+
+  /* List */
+  .list{flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  .focus .list{display:none;}
+  .row{display:flex; align-items:center; gap:10px; padding:5px 10px 5px 8px; border-left:5px solid transparent; cursor:pointer;}
+  .row.sel{background:var(--row-sel); border-left-color:var(--mark);}
+  .badge{flex-shrink:0; min-width:60px; height:34px; padding:0 10px; border-radius:17px;
+    background:linear-gradient(180deg,var(--p1),var(--p2)); display:flex; align-items:center; justify-content:center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);}
+  .badge svg{height:17px; width:auto; display:block;}
+  .rname{font-size:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .empty{color:var(--muted); text-align:center; padding:40px 20px; font-size:15px; line-height:1.6;}
+
+  /* Counter stage */
+  .stage{display:flex; flex-direction:column; flex-shrink:0; min-height:0;}
+  .focus .stage{flex:1 1 auto; height:auto !important;}
+  .tools{display:flex; justify-content:space-between; align-items:center; padding:6px 4px 4px; flex-shrink:0;}
+  .tool{width:56px; height:50px; display:flex; align-items:center; justify-content:center; border-radius:12px;}
+  .tool:active{background:rgba(255,255,255,.1);}
+  .tool svg{width:40px; height:40px;}
+  .panel-wrap{flex:1; min-height:0; display:flex; justify-content:center; padding:0 3px 6px;}
+  .panel{position:relative; width:100%; height:100%; border-radius:clamp(28px, 16vw, 72px);
+    background:linear-gradient(180deg,var(--p1),var(--p2)); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    touch-action:manipulation; cursor:pointer; overflow:hidden; transition:transform .06s, filter .06s;}
+  .panel.press{transform:scale(.985); filter:brightness(1.08);}
+  .panel.goal{animation:goal .9s ease 2;}
+  @keyframes goal{50%{filter:brightness(1.5) saturate(1.3);}}
+  .digits{width:72%; height:40%; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+  .digits svg{width:100%; height:100%; display:block;}
+  .tgt{position:absolute; bottom:12%; font-size:15px; letter-spacing:1px; color:rgba(255,255,255,.75); pointer-events:none;}
+
+  /* Dialogs */
+  .back{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
+  .back.show{display:flex;}
+  .dlg{background:var(--sheet); border:1px solid var(--line); border-radius:16px; padding:20px; width:min(92vw,360px); max-height:86vh; overflow-y:auto;}
+  .dlg h3{margin:0 0 14px; font-size:18px; font-weight:600;}
+  .dlg p{margin:0 0 12px; color:#c9d0d6; font-size:14px; line-height:1.55; user-select:text;}
+  .dlg input[type=text], .dlg input[type=number]{width:100%; padding:12px; border-radius:10px; border:1px solid var(--line);
+    background:#000; color:#fff; font-size:16px; margin-bottom:14px; user-select:text; -webkit-user-select:text;}
+  .btns{display:flex; gap:10px; justify-content:flex-end; margin-top:4px;}
+  .btn{padding:11px 16px; border-radius:10px; font-size:15px; background:#2a2f35; color:#cfd6dc;}
+  .btn.ok{background:var(--p2); color:#fff; font-weight:600;}
+  .btn.danger{background:#c0392b; color:#fff; font-weight:600;}
+  .menu-item{display:flex; align-items:center; justify-content:space-between; width:100%; padding:14px 6px; font-size:16px;
+    border-bottom:1px solid var(--line); text-align:left;}
+  .menu-item:last-child{border-bottom:none;}
+  .menu-item:active{background:rgba(255,255,255,.06);}
+  .menu-item .val{color:var(--muted); font-size:14px;}
+  .pick .row{border-radius:8px;}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+  .chip{flex:1; min-width:56px; padding:9px 4px; border-radius:10px; background:#2a2f35; color:#cfd6dc; font-size:13px; text-align:center;}
+  .chip.on{background:var(--p2); color:#fff;}
+  .frame{height:170px; border:2px solid var(--line); border-radius:18px; background:#000; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; margin-bottom:12px;}
+  .frame .fill{background:linear-gradient(180deg,var(--p1),var(--p2)); border-radius:10px 10px 6px 6px; margin:0 3px 3px;}
+  .szval{text-align:center; color:var(--p1); font-weight:700; margin-bottom:6px;}
+  input[type=range]{width:100%; accent-color:var(--p1); margin:6px 0 14px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <button class="tb" id="menuBtn" aria-label="Menyu"></button>
+    <div class="title" id="title"></div>
+    <button class="tb" id="focusBtn" aria-label="Katta rejim"></button>
+    <button class="tb" id="moreBtn" aria-label="Qo'shimcha"></button>
+  </header>
+
+  <nav class="actions">
+    <button class="act full-only" data-act="add" aria-label="Qo'shish"></button>
+    <button class="act" data-act="rename" aria-label="Nomini o'zgartirish"></button>
+    <button class="act full-only" data-act="copy" aria-label="Nusxa"></button>
+    <button class="act full-only" data-act="delete" aria-label="O'chirish"></button>
+    <button class="act" data-act="info" aria-label="Ma'lumot"></button>
+    <button class="act" data-act="reset" aria-label="Nolga tushirish"></button>
+    <button class="act" data-act="pick" aria-label="Ro'yxat"></button>
+  </nav>
+
+  <div class="list" id="list"></div>
+
+  <section class="stage" id="stage">
+    <div class="tools">
+      <button class="tool" id="targetBtn" aria-label="Maqsad"></button>
+      <button class="tool" id="undoBtn" aria-label="Bekor qilish"></button>
+    </div>
+    <div class="panel-wrap">
+      <div class="panel" id="panel">
+        <div class="digits" id="digits"></div>
+        <div class="tgt" id="tgt"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="back" id="back"><div class="dlg" id="dlg"></div></div>
+<input type="file" id="fileIn" accept="application/json,.json" style="display:none">
+
+<script>
+(function(){
+  'use strict';
+  /* ---------- Icons ---------- */
+  const S = (d, extra='') => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+  const IC = {
+    menu: S('<path d="M4 7h16M4 12h16M4 17h16"/>'),
+    expand: S('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5M4 4l6 6M20 4l-6 6M4 20l6-6M20 20l-6-6"/>'),
+    shrink: S('<path d="M10 5v5H5M14 5v5h5M10 19v-5H5M14 19v-5h5M4 4l6 6M20 4l-6 6M4 20l6-6M20 20l-6-6"/>'),
+    more: `<svg class="i" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.3"/><circle cx="12" cy="12" r="2.3"/><circle cx="12" cy="19" r="2.3"/></svg>`,
+    add: S('<path d="M12 4v16M4 12h16"/>'),
+    rename: S('<path d="M15 4l5 5L9 20H4v-5L15 4z"/><path d="M13 6l5 5"/>'),
+    copy: S('<rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'),
+    delete: S('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>'),
+    info: S('<circle cx="12" cy="6" r="1.2" fill="currentColor"/><path d="M10 10h2.5v9M9.5 19h5"/>'),
+    reset: S('<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/>'),
+    pick: S('<circle cx="5" cy="6" r="1.3" fill="currentColor"/><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="5" cy="18" r="1.3" fill="currentColor"/><path d="M10 6h10M10 12h10M10 18h10"/>'),
+    target: `<svg class="i" viewBox="0 0 40 40"><path d="M6 21c0-7 6-12 13-12s13 5 13 12-6 12-13 12c-2 0-4-.4-5.6-1L6 34l2.4-5.4C6.9 26.6 6 24 6 21z" fill="#fff"/><circle cx="13" cy="21" r="1.9" fill="#000"/><circle cx="19" cy="21" r="1.9" fill="#000"/><circle cx="25" cy="21" r="1.9" fill="#000"/><circle cx="31" cy="10" r="7" fill="#fff" stroke="#000" stroke-width="2"/><path d="M31 6.5v7M27.5 10h7" stroke="#000" stroke-width="2"/></svg>`,
+    undo: `<svg class="i" viewBox="0 0 40 40"><path d="M16 8L4 19l12 11v-7c8 0 14 2 20 9-2-10-8-17-20-18V8z" fill="#fff"/></svg>`
+  };
+  document.getElementById('menuBtn').innerHTML = IC.menu;
+  document.getElementById('moreBtn').innerHTML = IC.more;
+  document.getElementById('targetBtn').innerHTML = IC.target;
+  document.getElementById('undoBtn').innerHTML = IC.undo;
+  document.querySelectorAll('.act').forEach(b => b.innerHTML = IC[b.dataset.act]);
+
+  /* ---------- 7-segment digits ---------- */
+  const W = 50, H = 90, T = 10, G = 1.6, GAP = 14;
+  const L = T/2, R = W-T/2, TOP = T/2, MID = H/2, BOT = H-T/2;
+  const hs = (x1,x2,y)=>`${x1},${y} ${x1+T/2},${y-T/2} ${x2-T/2},${y-T/2} ${x2},${y} ${x2-T/2},${y+T/2} ${x1+T/2},${y+T/2}`;
+  const vs = (x,y1,y2)=>`${x},${y1} ${x+T/2},${y1+T/2} ${x+T/2},${y2-T/2} ${x},${y2} ${x-T/2},${y2-T/2} ${x-T/2},${y1+T/2}`;
+  const SEG = {
+    a: hs(L+G,R-G,TOP), g: hs(L+G,R-G,MID), d: hs(L+G,R-G,BOT),
+    f: vs(L,TOP+G,MID-G), b: vs(R,TOP+G,MID-G), e: vs(L,MID+G,BOT-G), c: vs(R,MID+G,BOT-G)
+  };
+  const MAP = ['abcdef','bc','abged','abgcd','fgbc','afgcd','afgedc','abc','abcdefg','abcdfg'];
+  const SKEW = 9; // italic slant
+  function seg7(str){
+    const n = str.length, cell = W + GAP;
+    const shift = H * Math.tan(SKEW*Math.PI/180);
+    const vbW = n*cell - GAP + shift;
+    let out = '';
+    for(let i=0;i<n;i++){
+      const segs = MAP[+str[i]] || '';
+      for(const s of segs) out += `<polygon points="${SEG[s]}" transform="translate(${i*cell},0)"/>`;
+    }
+    return `<svg viewBox="0 0 ${vbW.toFixed(1)} ${H}" fill="#fff"><g transform="translate(${shift.toFixed(1)},0) skewX(-${SKEW})">${out}</g></svg>`;
+  }
+
+  /* ---------- Storage ---------- */
+  const K = { counters:'zikr-counters-v1', sel:'zikr-selected-v1', size:'zikr-size-v1', focus:'zikr-focus-v1', vib:'zikr-vibrate-v1', wake:'zikr-wake-v1' };
+  const load = (k, d) => { try{ const r = localStorage.getItem(k); return r === null ? d : JSON.parse(r); }catch(e){ return d; } };
+  const save = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+  const uid = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  let counters = load(K.counters, null);
+  if(!Array.isArray(counters)) counters = ['Subhanalloh','Alhamdulillah','Alloh Akbar',"Astag'firulloh"].map(n => ({id:uid(), name:n, count:0}));
+  let selectedId = load(K.sel, null);
+  if(!counters.some(c => c.id === selectedId)) selectedId = counters[0] ? counters[0].id : null;
+  let sizeValue = load(K.size, 45);
+  let focusMode = load(K.focus, false);
+  let vibrateOn = load(K.vib, true);
+  let wakeOn = load(K.wake, true);
+  let history = [];
+
+  const sel = () => counters.find(c => c.id === selectedId);
+  const saveAll = () => { save(K.counters, counters); save(K.sel, selectedId); };
+
+  /* ---------- Elements ---------- */
+  const app = document.getElementById('app');
+  const listEl = document.getElementById('list');
+  const titleEl = document.getElementById('title');
+  const digitsEl = document.getElementById('digits');
+  const tgtEl = document.getElementById('tgt');
+  const panel = document.getElementById('panel');
+  const stage = document.getElementById('stage');
+  const focusBtn = document.getElementById('focusBtn');
+  const esc = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  /* ---------- Render ---------- */
+  function rowHTML(c){
+    return `<div class="row${c.id===selectedId?' sel':''}" data-id="${c.id}"><div class="badge">${seg7(String(c.count))}</div><div class="rname">${esc(c.name)}</div></div>`;
+  }
+  function renderList(){
+    listEl.innerHTML = counters.length ? counters.map(rowHTML).join('')
+      : '<div class="empty">Hisoblagich yo’q.<br>Yuqoridagi ＋ tugmasi bilan qo’shing.</div>';
+    const s = listEl.querySelector('.row.sel');
+    if(s) s.scrollIntoView({block:'nearest'});
+  }
+  function renderCounter(){
+    const c = sel();
+    digitsEl.innerHTML = seg7(String(c ? c.count : 0).padStart(4,'0'));
+    tgtEl.textContent = c && c.target ? (c.count % c.target === 0 && c.count ? '✓ ' : '') + (c.count % c.target) + ' / ' + c.target + (c.count >= c.target ? '  ·  ' + Math.floor(c.count / c.target) + ' marta' : '') : '';
+    titleEl.textContent = focusMode ? (c ? c.name : '') : '';
+    // update the selected badge only (fast)
+    const row = c && listEl.querySelector(`.row[data-id="${c.id}"] .badge`);
+    if(row) row.innerHTML = seg7(String(c.count));
+  }
+  function render(){
+    app.classList.toggle('focus', focusMode);
+    focusBtn.innerHTML = focusMode ? IC.shrink : IC.expand;
+    renderList(); renderCounter(); layout();
+  }
+
+  listEl.addEventListener('click', e => {
+    const r = e.target.closest('.row'); if(!r) return;
+    selectedId = r.dataset.id; save(K.sel, selectedId); render();
+  });
+
+  /* ---------- Size ---------- */
+  function layout(v = sizeValue){
+    if(focusMode){ stage.style.height = ''; return; }
+    const avail = app.clientHeight - document.querySelector('.topbar').offsetHeight - document.querySelector('.actions').offsetHeight;
+    stage.style.height = Math.max(150, Math.round(avail * v / 100)) + 'px';
+  }
+  window.addEventListener('resize', () => layout());
+
+  /* ---------- Counting ---------- */
+  function vib(p){ if(vibrateOn && navigator.vibrate) try{ navigator.vibrate(p); }catch(e){} }
+  panel.addEventListener('pointerdown', e => {
+    if(e.button > 0) return;
+    const c = sel(); if(!c) return;
+    history.push({id:c.id, count:c.count});
+    if(history.length > 500) history.shift();
+    c.count++;
+    panel.classList.add('press');
+    if(c.target && c.count % c.target === 0){
+      vib([120,60,120]);
+      panel.classList.remove('goal'); void panel.offsetWidth; panel.classList.add('goal');
+    } else vib(15);
+    save(K.counters, counters);
+    renderCounter();
+  });
+  const unpress = () => panel.classList.remove('press');
+  panel.addEventListener('pointerup', unpress);
+  panel.addEventListener('pointercancel', unpress);
+  panel.addEventListener('pointerleave', unpress);
+  panel.addEventListener('contextmenu', e => e.preventDefault());
+
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    const last = history.pop(); if(!last) return;
+    const c = counters.find(x => x.id === last.id);
+    if(c){ c.count = last.count; if(selectedId !== c.id){ selectedId = c.id; } saveAll(); render(); vib(8); }
+  });
+
+  focusBtn.addEventListener('click', () => { focusMode = !focusMode; save(K.focus, focusMode); render(); });
+
+  /* ---------- Dialog helper ---------- */
+  const back = document.getElementById('back'), dlg = document.getElementById('dlg');
+  let onClose = null;
+  function openDlg(html, wire){
+    dlg.innerHTML = html; back.classList.add('show');
+    onClose = null; if(wire) wire(dlg);
+  }
+  function closeDlg(){ back.classList.remove('show'); dlg.innerHTML = ''; if(onClose){ const f = onClose; onClose = null; f(); } }
+  back.addEventListener('click', e => { if(e.target === back) closeDlg(); });
+
+  function prompt2(title, value, placeholder, cb, type='text'){
+    openDlg(`<h3>${esc(title)}</h3><input type="${type}" id="pin" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'inputmode="numeric" min="0"':''}>
+      <div class="btns"><button class="btn" data-x>Bekor</button><button class="btn ok" data-ok>Saqlash</button></div>`, d => {
+      const inp = d.querySelector('#pin');
+      setTimeout(() => { inp.focus(); inp.select(); }, 60);
+      const ok = () => { const v = inp.value.trim(); if(cb(v) !== false) closeDlg(); };
+      d.querySelector('[data-ok]').onclick = ok;
+      d.querySelector('[data-x]').onclick = closeDlg;
+      inp.addEventListener('keydown', e => { if(e.key === 'Enter') ok(); });
+    });
+  }
+  function confirm2(title, text, okLabel, cb){
+    openDlg(`<h3>${esc(title)}</h3><p>${text}</p><div class="btns"><button class="btn" data-x>Bekor</button><button class="btn danger" data-ok>${esc(okLabel)}</button></div>`, d => {
+      d.querySelector('[data-x]').onclick = closeDlg;
+      d.querySelector('[data-ok]').onclick = () => { closeDlg(); cb(); };
+    });
+  }
+  function menu(title, items){
+    openDlg(`<h3>${esc(title)}</h3>` + items.map((it,i) => `<button class="menu-item" data-i="${i}"><span>${esc(it.label)}</span><span class="val">${esc(it.val||'')}</span></button>`).join(''), d => {
+      d.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const it = items[+b.dataset.i]; closeDlg(); it.run(); });
+    });
+  }
+
+  /* ---------- Actions ---------- */
+  const ACT = {
+    add(){ prompt2('Yangi hisoblagich', '', 'Masalan: Ya Vadud', v => {
+      if(!v) return false;
+      const c = {id:uid(), name:v, count:0}; counters.push(c); selectedId = c.id; saveAll(); render();
+    }); },
+    rename(){ const c = sel(); if(!c) return; prompt2('Nomini o’zgartirish', c.name, '', v => {
+      if(!v) return false; c.name = v; saveAll(); render();
+    }); },
+    copy(){ const c = sel(); if(!c) return;
+      const n = {id:uid(), name:c.name + ' (2)', count:0, target:c.target||0};
+      counters.splice(counters.indexOf(c)+1, 0, n); selectedId = n.id; saveAll(); render(); },
+    delete(){ const c = sel(); if(!c) return;
+      confirm2('O’chirilsinmi?', `<b>${esc(c.name)}</b> (${c.count} ta) butunlay o’chiriladi. Buni qaytarib bo’lmaydi.`, 'O’chirish', () => {
+        const i = counters.indexOf(c); counters.splice(i,1);
+        history = history.filter(h => h.id !== c.id);
+        selectedId = counters[Math.min(i, counters.length-1)] ? counters[Math.min(i, counters.length-1)].id : null;
+        saveAll(); render();
+      }); },
+    reset(){ const c = sel(); if(!c || !c.count) return;
+      history.push({id:c.id, count:c.count}); c.count = 0; saveAll(); render(); vib(30); },
+    pick(){
+      openDlg(`<h3>Zikrni tanlang</h3><div class="pick">${counters.map(rowHTML).join('') || '<div class="empty">Bo’sh</div>'}</div>`, d => {
+        d.querySelectorAll('.row').forEach(r => r.onclick = () => { selectedId = r.dataset.id; save(K.sel, selectedId); closeDlg(); render(); });
+      });
+    },
+    info(){
+      openDlg(`<h3>Zikr Hisoblagich</h3>
+        <p>Katta ko’k tugmani bosib sanang. Tepasidagi o‘ng strelka oxirgi bosishni bekor qiladi, chapdagi belgi esa <b>maqsad</b> qo’yadi (masalan 33): har 33 da telefon titraydi.</p>
+        <p>＋ qo’shish · ✎ nom · ⧉ nusxa · 🗑 o’chirish · ↻ nolga tushirish · ☰ zikr tanlash. Yuqori o‘ngdagi belgi katta rejimni yoqadi.</p>
+        <p>Ma’lumotlar telefoningizda saqlanadi. Vaqti-vaqti bilan ⋮ menyusidan <b>zaxira nusxa</b> olib qo’ying.</p>
+        <div class="btns"><button class="btn ok" data-x>Yopish</button></div>`, d => d.querySelector('[data-x]').onclick = closeDlg);
+    }
+  };
+  document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => ACT[b.dataset.act]()));
+
+  document.getElementById('targetBtn').addEventListener('click', () => {
+    const c = sel(); if(!c) return;
+    openDlg(`<h3>Maqsad: ${esc(c.name)}</h3><p>Har shuncha sanaganda telefon titraydi.</p>
+      <div class="chips">${[0,33,99,100,1000].map(v => `<button class="chip${(c.target||0)===v?' on':''}" data-v="${v}">${v||'Yo’q'}</button>`).join('')}</div>
+      <input type="number" id="tin" inputmode="numeric" min="0" placeholder="Boshqa son" value="${c.target && ![33,99,100,1000].includes(c.target) ? c.target : ''}">
+      <div class="btns"><button class="btn" data-x>Bekor</button><button class="btn ok" data-ok>Saqlash</button></div>`, d => {
+      d.querySelectorAll('.chip').forEach(ch => ch.onclick = () => { c.target = +ch.dataset.v; saveAll(); closeDlg(); renderCounter(); });
+      d.querySelector('[data-x]').onclick = closeDlg;
+      d.querySelector('[data-ok]').onclick = () => { const v = parseInt(d.querySelector('#tin').value, 10); if(v > 0) c.target = v; saveAll(); closeDlg(); renderCounter(); };
+    });
+  });
+
+  /* ---------- Size dialog ---------- */
+  function sizeDlg(){
+    const old = sizeValue;
+    openDlg(`<h3>Tugma hajmi</h3><div class="frame"><div class="fill" id="fill"></div></div>
+      <div class="szval" id="szv"></div><input type="range" min="25" max="90" id="szr" value="${sizeValue}">
+      <div class="chips">${[[30,'Kichik'],[45,'O’rta'],[60,'Katta'],[80,'Eng katta']].map(([v,l]) => `<button class="chip" data-v="${v}">${l}</button>`).join('')}</div>
+      <div class="btns"><button class="btn" data-x>Bekor</button><button class="btn ok" data-ok>Tayyor</button></div>`, d => {
+      const r = d.querySelector('#szr'), fill = d.querySelector('#fill'), szv = d.querySelector('#szv');
+      const upd = v => { r.value = v; szv.textContent = v + '%'; fill.style.height = v + '%';
+        d.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', +c.dataset.v === +v)); layout(+v); };
+      upd(sizeValue);
+      r.oninput = () => upd(+r.value);
+      d.querySelectorAll('.chip').forEach(c => c.onclick = () => upd(+c.dataset.v));
+      onClose = () => layout();
+      d.querySelector('[data-x]').onclick = () => { sizeValue = old; closeDlg(); };
+      d.querySelector('[data-ok]').onclick = () => { sizeValue = +r.value; save(K.size, sizeValue); closeDlg(); };
+    });
+  }
+
+  /* ---------- Menus ---------- */
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+
+  document.getElementById('menuBtn').addEventListener('click', () => {
+    const items = [
+      {label:'Tugma hajmi', val: sizeValue + '%', run: sizeDlg},
+      {label:'Tebranish', val: vibrateOn ? 'Yoqilgan' : 'O’chiq', run(){ vibrateOn = !vibrateOn; save(K.vib, vibrateOn); vib(40); }},
+      {label:'Ekran o’chmasin', val: wakeOn ? 'Yoqilgan' : 'O’chiq', run(){ wakeOn = !wakeOn; save(K.wake, wakeOn); wake(); }},
+    ];
+    if(installEvt) items.push({label:'Ilovani o’rnatish', val:'', run(){ installEvt.prompt(); installEvt = null; }});
+    items.push({label:'Yordam', val:'', run: ACT.info});
+    menu('Sozlamalar', items);
+  });
+
+  document.getElementById('moreBtn').addEventListener('click', () => {
+    menu('Qo’shimcha', [
+      {label:'Zaxira nusxa olish', val:'.json', run: exportData},
+      {label:'Zaxiradan tiklash', val:'', run: () => document.getElementById('fileIn').click()},
+      {label:'Hammasini nolga tushirish', val:'', run: () => confirm2('Hammasi nolga tushirilsinmi?', 'Barcha zikrlar soni 0 bo’ladi.', 'Nolga', () => {
+        counters.forEach(c => { if(c.count) history.push({id:c.id, count:c.count}); c.count = 0; }); saveAll(); render();
+      })},
+    ]);
+  });
+
+  function exportData(){
+    const data = JSON.stringify({app:'zikr', v:1, date:new Date().toISOString(), counters}, null, 1);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([data], {type:'application/json'}));
+    a.download = 'zikr-zaxira-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  document.getElementById('fileIn').addEventListener('change', e => {
+    const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+    f.text().then(t => {
+      const d = JSON.parse(t);
+      const list = Array.isArray(d) ? d : d.counters;
+      if(!Array.isArray(list)) throw 0;
+      const clean = list.filter(c => c && c.name).map(c => ({id: c.id || uid(), name: String(c.name), count: Math.max(0, parseInt(c.count,10)||0), target: Math.max(0, parseInt(c.target,10)||0)}));
+      confirm2('Tiklansinmi?', `Fayldan ${clean.length} ta zikr topildi. Hozirgi ro’yxat almashtiriladi.`, 'Tiklash', () => {
+        counters = clean; selectedId = counters[0] ? counters[0].id : null; history = []; saveAll(); render();
+      });
+    }).catch(() => confirm2('Xato', 'Bu fayl zaxira nusxa emas.', 'OK', () => {}));
+  });
+
+  /* ---------- Keep screen awake ---------- */
+  let lock = null;
+  async function wake(){
+    try{
+      if(wakeOn && 'wakeLock' in navigator && document.visibilityState === 'visible'){
+        if(!lock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => lock = null); }
+      } else if(lock){ await lock.release(); lock = null; }
+    }catch(e){ lock = null; }
+  }
+  document.addEventListener('visibilitychange', wake);
+  document.addEventListener('pointerdown', wake, {once:true});
+
+  /* ---------- Offline (service worker) ---------- */
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+
+  render();
+  requestAnimationFrame(() => layout());
+  wake();
+})();
+</script>
+</body>
+</html>
